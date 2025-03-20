@@ -1,4 +1,5 @@
 using System.Xml;
+using JetBrains.Annotations;
 
 namespace BitzArt.XDoc;
 
@@ -6,6 +7,7 @@ namespace BitzArt.XDoc;
 /// Default implementation of <see cref="IDocumentationReferenceResolver"/> that
 /// extracts references from XML documentation nodes.
 /// </summary>
+[PublicAPI]
 public class CrossAssemblyDocumentationReferenceResolver : IDocumentationReferenceResolver
 {
     /// <summary>
@@ -18,7 +20,7 @@ public class CrossAssemblyDocumentationReferenceResolver : IDocumentationReferen
     /// otherwise, <see langword="null"/>.
     /// </returns>
     /// <exception cref="NotImplementedException">Thrown when the node type is not supported.</exception>
-    public virtual DocumentationReference? GetReference(XDoc source, XmlNode node)
+    public DocumentationReference? GetReference(XDoc source, XmlNode node)
     {
         if (node.Attributes?["cref"] != null)
         {
@@ -40,15 +42,18 @@ public class CrossAssemblyDocumentationReferenceResolver : IDocumentationReferen
     /// <param name="node">The inheritdoc XML node.</param>
     /// <returns>A documentation reference or null if reference cannot be extracted.</returns>
     /// <exception cref="NotImplementedException">This method is not implemented yet.</exception>
-    protected virtual DocumentationReference? GetInheritReference(XDoc source, XmlNode node)
+    private DocumentationReference? GetInheritReference(XDoc source, XmlNode node)
     {
-        var attribute = node.ParentNode?.Attributes?["name"];
-
         //P:TestAssembly.B.Dog.Color
-        var referenceName = attribute?.Value ?? string.Empty;
-        var (prefix, typeName, memberName) = GetTypeAndMember(referenceName);
 
-        var type = GetType(typeName);
+        var cref = Cref.TryCreate(node.ParentNode?.Attributes?["name"]?.Value, out var result) ? result : null;
+
+        if (cref is null)
+        {
+            return null;
+        }
+
+        var type = GetType(cref.Type);
         var baseType = type.BaseType;
 
         if (baseType == null)
@@ -58,13 +63,13 @@ public class CrossAssemblyDocumentationReferenceResolver : IDocumentationReferen
 
         MemberDocumentation? targetDocumentation = null;
 
-        if (prefix is "T:")
+        if (cref.Prefix is "T:")
         {
             targetDocumentation = source.Get(baseType);
         }
-        else if (prefix is "P:" or "M:" or "F:")
+        else if (cref.Prefix is "P:" or "M:" or "F:")
         {
-            targetDocumentation = GetMemberDocumentation(source, baseType, memberName);
+            targetDocumentation = GetMemberDocumentation(source, baseType, cref.Member!);
         }
 
         if (targetDocumentation == null)
@@ -72,7 +77,7 @@ public class CrossAssemblyDocumentationReferenceResolver : IDocumentationReferen
             return null;
         }
 
-        return new DocumentationReference(node, targetDocumentation, null);
+        return new DocumentationReference(node, targetDocumentation, cref);
     }
 
     /// <summary>
@@ -80,27 +85,28 @@ public class CrossAssemblyDocumentationReferenceResolver : IDocumentationReferen
     /// </summary>
     /// <param name="source"></param>
     /// <param name="node">The XML node containing the reference.</param>
-    /// <param name="attribute">The cref attribute containing the reference value.</param>
     /// <returns>A documentation reference or null if reference cannot be extracted.</returns>
     /// <exception cref="NotImplementedException">This method is not implemented yet.</exception>
-    protected virtual DocumentationReference? GetCrefReference(XDoc source, XmlNode node)
+    private DocumentationReference? GetCrefReference(XDoc source, XmlNode node)
     {
-        // P:TestAssembly.B.Dog.Name
-        var cref = node.Attributes?["cref"]?.Value ?? string.Empty;
+        var cref = Cref.TryCreate(node.Attributes?["cref"]?.Value, out var result) ? result : null;
 
-        var (prefix, typeName, memberName) = GetTypeAndMember(cref);
+        if (cref == null)
+        {
+            return null;
+        }
 
-        var type = GetType(typeName);
+        var type = GetType(cref.Type);
 
         MemberDocumentation? targetDocumentation = null;
 
-        if (prefix is "T:")
+        if (cref.Prefix is "T:")
         {
             targetDocumentation = source.Get(type);
         }
-        else if (prefix is "P:" or "M:" or "F:")
+        else if (cref.Prefix is "P:" or "M:" or "F:")
         {
-            targetDocumentation = GetMemberDocumentation(source, type, memberName);
+            targetDocumentation = GetMemberDocumentation(source, type, cref.Member!);
         }
 
         if (targetDocumentation == null)
@@ -117,59 +123,13 @@ public class CrossAssemblyDocumentationReferenceResolver : IDocumentationReferen
 
         if (memberInfos.Length != 1)
         {
-            throw new Exception("Can't select a member info.");
+            return null;
         }
 
         var memberInfo = memberInfos.First();
         var memberDocumentation = source.Get(memberInfo);
 
         return memberDocumentation;
-    }
-
-    /// <summary>
-    /// Parses a fully qualified XML documentation reference string into its constituent parts.
-    /// </summary>
-    /// <param name="value">The XML documentation reference string to parse (e.g., "T:Namespace.TypeName" or "P:Namespace.TypeName.PropertyName").</param>
-    /// <returns>
-    /// A tuple containing:
-    /// - prefix: The reference type prefix (e.g., "T:", "P:", "M:", "F:")
-    /// - typeName: The fully qualified type name
-    /// - memberName: The member name (empty for type references)
-    /// </returns>
-    /// <exception cref="Exception">Thrown when the reference format is not recognized.</exception>
-    /// <remarks>
-    /// Handles these reference formats:
-    /// - "T:Namespace.TypeName" for types
-    /// - "P:Namespace.TypeName.PropertyName" for properties 
-    /// - "M:Namespace.TypeName.MethodName" for methods
-    /// - "F:Namespace.TypeName.FieldName" for fields
-    /// </remarks>
-    protected static (string prefix, string typeName, string? memberName) GetTypeAndMember(string value)
-    {
-        if (string.IsNullOrWhiteSpace(value) || value.Length < 2)
-        {
-            return (string.Empty, string.Empty, string.Empty);
-        }
-
-        var prefix = value[..2];
-
-        if (prefix is "T:")
-        {
-            var typeName = value.Substring(2, value.Length - 2);
-
-            return (prefix, typeName, null);
-        }
-        else if (prefix is "P:" or "M:" or "F:")
-        {
-            var lastIndexOf = value.LastIndexOf('.');
-
-            var typeName = value.Substring(2, lastIndexOf - 2);
-            var memberName = value[(lastIndexOf + 1)..];
-
-            return (prefix, typeName, memberName);
-        }
-
-        throw new Exception("Can't select a member info.");
     }
 
     /// <summary>

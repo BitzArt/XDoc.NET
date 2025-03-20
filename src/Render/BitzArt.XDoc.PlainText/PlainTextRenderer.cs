@@ -1,3 +1,4 @@
+using System.Reflection;
 using System.Text;
 using System.Xml;
 
@@ -182,13 +183,24 @@ public class PlainTextRenderer
         var text = documentationReference.Target switch
         {
             TypeDocumentation typeDocumentation => typeDocumentation.Type.Name,
-            FieldDocumentation fieldDocumentation => fieldDocumentation.MemberName,
-            PropertyDocumentation propertyDocumentation => propertyDocumentation.MemberName,
-            MethodDocumentation methodDocumentation => methodDocumentation.MemberName,
+            FieldDocumentation fieldDocumentation => RenderMember(fieldDocumentation),
+            PropertyDocumentation propertyDocumentation => RenderMember(propertyDocumentation),
+            MethodDocumentation methodDocumentation => RenderMember(methodDocumentation),
             _ => string.Empty
         };
 
         return text;
+    }
+
+    private string RenderMember<T>(TypeMemberDocumentation<T> documentation)
+        where T : MemberInfo
+    {
+        if (_options.UseShortTypeNames)
+        {
+            return $"{documentation.DeclaringType.Name}.{documentation.MemberName}";
+        }
+
+        return $"{documentation.DeclaringType.FullName}.{documentation.MemberName}";
     }
 
     /// <summary>

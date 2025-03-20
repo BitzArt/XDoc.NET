@@ -20,7 +20,7 @@ public abstract class TypeMemberDocumentation<TMember> : MemberDocumentation
     /// <summary>
     /// The <see cref="Type"/> that declares the member.
     /// </summary>
-    internal Type DeclaringType => _declaringTypeDocumentation.Type;
+    public Type DeclaringType => _declaringTypeDocumentation.Type;
 
     /// <summary>
     /// Name of the member.

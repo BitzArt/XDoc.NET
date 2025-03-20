@@ -29,9 +29,15 @@ public class DocumentationReference
     /// <param name="target"></param>
     /// <param name="crefValue"></param>
     public DocumentationReference(XmlNode requirementNode, MemberDocumentation? target, string? crefValue)
+        : this(requirementNode, target, Cref.TryCreate(crefValue, out var cref) ? cref : null)
+    {
+    }
+
+
+    public DocumentationReference(XmlNode requirementNode, MemberDocumentation? target, Cref? cref)
     {
         Target = target;
         RequirementNode = requirementNode;
-        Cref = Cref.TryCreate(crefValue, out var cref) ? cref : null;
+        Cref = cref;
     }
 }

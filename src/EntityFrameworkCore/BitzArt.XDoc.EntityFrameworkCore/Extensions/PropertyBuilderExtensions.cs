@@ -15,8 +15,6 @@ public static class PropertyBuilderExtensions
     /// Adds a comment to a property being configured, using documentation from XDoc.
     /// The comment is extracted from a property defined in the provided expression.
     /// </summary>
-    /// <typeparam name="TEntity">The entity type being configured</typeparam>
-    /// <typeparam name="TProperty">The type of the property being configured</typeparam>
     /// <typeparam name="TCommentTargetEntity">The entity type containing the property whose documentation will be used</typeparam>
     /// <typeparam name="TCommentTargetProperty">The type of the property whose documentation will be used</typeparam>
     /// <param name="propertyBuilder">The builder for the property</param>
@@ -31,7 +29,7 @@ public static class PropertyBuilderExtensions
         Expression<Func<TCommentTargetEntity, TCommentTargetProperty>> commentTargetPropertyExpression)
         where TCommentTargetEntity : class
     {
-        var comment = xdoc.Get(commentTargetPropertyExpression).ToPlainText();;
+        var comment = xdoc.Get(commentTargetPropertyExpression).ToPlainText(forceSingleLine: true);
 
         return propertyBuilder.HasComment(comment);
     }
@@ -53,7 +51,7 @@ public static class PropertyBuilderExtensions
         Expression<Func<TCommentTargetEntity, TCommentTargetProperty>> commentTargetPropertyExpression)
         where TCommentTargetEntity : class
     {
-        var comment = xdoc.Get(commentTargetPropertyExpression).ToPlainText();
+        var comment = xdoc.Get(commentTargetPropertyExpression).ToPlainText(forceSingleLine: true);
 
         return propertyBuilder.HasComment(comment);
     }

@@ -13,33 +13,45 @@ public class PlainTextRenderer
     /// Converts an XML documentation node to the plain text.
     /// </summary>
     /// <param name="documentation"></param>
+    /// <param name="forceSingleLine"></param>
+    /// <param name="useShortTypeNames"></param>
     /// <returns></returns>
-    public static string Render(MemberDocumentation? documentation)
+    public static string Render(
+        MemberDocumentation? documentation,
+        bool forceSingleLine = false,
+        bool useShortTypeNames = true)
     {
         if (documentation == null)
         {
             return string.Empty;
         }
 
-        return new PlainTextRenderer(documentation).Render();
+        return new PlainTextRenderer(documentation, new RendererOptions
+        {
+            ForceSingleLine = forceSingleLine,
+            UseShortTypeNames = useShortTypeNames
+        }).Render();
     }
 
     /// <summary>
     /// The documentation instance to be rendered by this renderer.
     /// This field is initialized in the constructor and remains readonly afterward.
     /// </summary>
-    protected readonly MemberDocumentation Documentation;
+    private readonly MemberDocumentation _documentation;
 
-    protected PlainTextRenderer(MemberDocumentation documentation)
+    private readonly RendererOptions _options;
+
+    private PlainTextRenderer(MemberDocumentation documentation, RendererOptions rendererOptions)
     {
-        Documentation = documentation;
+        _options = rendererOptions;
+        _documentation = documentation;
     }
 
     /// <summary>
     /// Renders the current documentation to plain text.
     /// </summary>
     /// <returns>A normalized plain text representation of the documentation.</returns>
-    protected string Render() => Normalize(Render(Documentation.Node));
+    private string Render() => Normalize(Render(_documentation.Node));
 
     /// <summary>
     /// Renders the content of an XML node to plain text.
@@ -70,9 +82,9 @@ public class PlainTextRenderer
             .Where(o => !string.IsNullOrWhiteSpace(o))
             .ToList();
 
-        var result = string.Join("\n", lines);
+        var separator = _options.ForceSingleLine ? " " : "\n";
 
-        return result;
+        return string.Join(separator, lines);
     }
 
     /// <summary>
@@ -102,9 +114,9 @@ public class PlainTextRenderer
     /// </summary>
     /// <param name="element"></param>
     /// <returns></returns>
-    protected virtual string RenderReference(XmlElement element)
+    private string RenderReference(XmlElement element)
     {
-        var documentationReference = Documentation.GetReference(element);
+        var documentationReference = _documentation.GetReference(element);
 
         if (documentationReference == null)
         {
@@ -115,7 +127,7 @@ public class PlainTextRenderer
         {
             return RenderDocumentationReference(documentationReference);
         }
-        else if (!string.IsNullOrWhiteSpace(documentationReference.Cref))
+        else if (documentationReference.Cref != null)
         {
             return RenderSimpleDocumentationReference(documentationReference);
         }
@@ -127,34 +139,35 @@ public class PlainTextRenderer
     {
         var cref = documentationReference.Cref;
 
-        if (string.IsNullOrWhiteSpace(cref))
+        if (cref is null)
         {
             return string.Empty;
         }
 
-        var prefix = cref[..2];
-        var lastIndexOf = cref.LastIndexOf('.');
-
-        if (prefix is "T:")
+        if (cref.Prefix is "T:")
         {
-            return cref.Substring(lastIndexOf + 1, cref.Length - lastIndexOf - 1);
+            if (_options.UseShortTypeNames)
+            {
+                return cref.ShortType;
+            }
+
+            return cref.Type;
         }
 
-        if (prefix is "M:" or "P:" or "F:")
+        if (cref.Prefix is "M:" or "P:" or "F:")
         {
-            var type = cref.Substring(2, lastIndexOf - 2);
-            var method = cref.Substring(lastIndexOf + 1, cref.Length - lastIndexOf - 1);
+            if (_options.UseShortTypeNames)
+            {
+                return $"{cref.ShortType}.{cref.Member}";
+            }
 
-            var typeLastIndexOf = type.LastIndexOf('.');
-            type = type.Substring(typeLastIndexOf + 1, type.Length - typeLastIndexOf - 1);
-
-            return $"{type}.{method}";
+            return $"{cref.Type}.{cref.Member}";
         }
 
         return string.Empty;
     }
 
-    private static string RenderDocumentationReference(DocumentationReference documentationReference)
+    private string RenderDocumentationReference(DocumentationReference documentationReference)
     {
         if (documentationReference.Target == null)
         {
@@ -176,10 +189,6 @@ public class PlainTextRenderer
         };
 
         return text;
-
-        // var renderer = new PlainTextRenderer(documentationReference.Target);
-        //
-        // return renderer.Render();
     }
 
     /// <summary>

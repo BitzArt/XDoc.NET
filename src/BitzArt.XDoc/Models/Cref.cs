@@ -19,7 +19,7 @@ public record Cref
         switch (Prefix)
         {
             case "T:":
-                Type = cref.Substring(lastIndexOf + 1, cref.Length - lastIndexOf - 1);
+                Type = cref.Substring(2, cref.Length - 2);
                 Member = null;
                 break;
             case "M:" or "P:" or "F:":

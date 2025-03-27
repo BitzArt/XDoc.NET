@@ -30,7 +30,7 @@ internal class XmlParser
     internal Dictionary<Type, TypeDocumentation> Parse()
     {
         var nodeList = _xml.SelectNodes("/doc/members/member")
-                       ?? throw new InvalidOperationException("No documentation found in the XML file.");
+            ?? throw new InvalidOperationException("Invalid XML.");
 
         foreach (XmlNode node in nodeList) Parse(node);
 
@@ -42,12 +42,8 @@ internal class XmlParser
         if (node.Attributes is null || node.Attributes.Count == 0)
             throw new InvalidOperationException("Invalid XML node.");
 
-        var name = node.Attributes["name"]?.Value;
-
-        if (name == null)
-        {
-            throw new InvalidOperationException($"No 'name' attribute found in XML node '{node.Value}'.");
-        }
+        var name = (node.Attributes["name"]?.Value)
+            ?? throw new InvalidOperationException($"No 'name' attribute found in XML node '{node.Value}'.");
 
         switch (name[0])
         {
@@ -60,11 +56,8 @@ internal class XmlParser
 
     private TypeDocumentation ParseTypeNode(XmlNode node, string name)
     {
-        var type = _assembly.GetType(name);
-        if (type == null)
-        {
-            throw new InvalidOperationException($"Type '{name}' not found.");
-        }
+        var type = _assembly.GetType(name)
+            ?? throw new InvalidOperationException($"Type '{name}' not found.");
 
         // We could handle this case by finding and updating the existing object,
         // but I don't see a reason why this would be necessary.
@@ -90,7 +83,7 @@ internal class XmlParser
 
         var typeDocumentation = ResolveOwnerType(type);
 
-        var propertyDocumentation = new PropertyDocumentation(_source, typeDocumentation, propertyInfo, node);
+        var propertyDocumentation = new PropertyDocumentation(_source, propertyInfo, node);
 
         typeDocumentation.AddMemberData(propertyInfo, propertyDocumentation);
 
@@ -112,7 +105,7 @@ internal class XmlParser
 
         var typeDocumentation = ResolveOwnerType(type);
 
-        var fieldDocumentation = new FieldDocumentation(_source, typeDocumentation, fieldInfo, node);
+        var fieldDocumentation = new FieldDocumentation(_source, fieldInfo, node);
 
         typeDocumentation.AddMemberData(fieldInfo, fieldDocumentation);
 
@@ -155,7 +148,7 @@ internal class XmlParser
 
         var typeDocumentation = ResolveOwnerType(type);
 
-        var methodDocumentation = new MethodDocumentation(_source, typeDocumentation, methodInfo, node);
+        var methodDocumentation = new MethodDocumentation(_source, methodInfo, node);
 
         typeDocumentation.AddMemberData(methodInfo, methodDocumentation);
 

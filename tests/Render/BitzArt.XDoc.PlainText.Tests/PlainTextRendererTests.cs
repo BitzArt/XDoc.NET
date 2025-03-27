@@ -1,113 +1,171 @@
-using TestAssembly.A;
-using TestAssembly.B;
+using System.Xml;
 
 namespace BitzArt.XDoc.Tests;
 
+public class TestClass
+{
+}
+
 public class PlainTextRendererTests
 {
-    // Act
-    private readonly XDoc _xDoc = new XDoc(new SimpleDocumentationReferenceResolver());
-
     [Fact]
-    public void Render_PlainTextRenderer_ShouldReturnInheritedProperty()
+    public void Render_ExtractsPropertySummary_FromDocumentation()
     {
         // Arrange
-        var propertyDocumentation = _xDoc.Get(typeof(Dog).GetProperty(nameof(Dog.Color))!);
+        var assembly = GetType().Assembly;
 
-        // Act
-        var comment = propertyDocumentation.ToPlainText();
+        List<TestMemberNode> nodes =
+        [
+            new TestMemberNode(typeof(TestClass), "none"),
 
-        // Assert
-        Assert.NotNull(comment);
+            new TestMemberNode(TestNodeType.Property,
+                "BitzArt.XDoc.Tests.BaseTestClass.Name",
+                "<member name=\"P:BitzArt.XDoc.Tests.TestClass.TestProperty\"><summary>Test property documentation.</summary></member>")
+        ];
+
+        var xml = nodes.GetXml(assembly);
+        var xmlDocument = new XmlDocument();
+        xmlDocument.LoadXml(xml);
+
+        var node = xmlDocument.SelectSingleNode("//member[@name='P:BitzArt.XDoc.Tests.TestClass.TestProperty']");
+
+        var memberDocumentation = new FakeMemberDocumentation(node);
+
+        var plainTextRenderer = new PlainTextRenderer(new XDoc());
+        var comment = plainTextRenderer.Render(memberDocumentation);
+
+        Assert.Equal("Test property documentation.", comment);
     }
 
     [Fact]
-    public void Render_PlainTextRenderer_ShouldReturnCrefProperty()
+    public void Render_ReturnsEmptyString_WhenInheritDocTagProvided()
     {
         // Arrange
-        var propertyDocumentation = _xDoc.Get(typeof(Dog).GetProperty(nameof(Dog.Field2))!);
+        var assembly = GetType().Assembly;
 
-        // Act
-        var comment = propertyDocumentation.ToPlainText();
 
-        // Assert
-        Assert.NotNull(comment);
+        List<TestMemberNode> nodes =
+        [
+            new TestMemberNode(typeof(TestClass), "node with inherit doc test"),
+            new TestMemberNode(TestNodeType.Property,
+                "BitzArt.XDoc.Tests.TestClass.Name",
+                "<member name=\"P:BitzArt.XDoc.Tests.TestClass.Name\"><inheritdoc /></member>")
+        ];
 
-        // Assert.Equal("123 Name of specific Dog.\nBe carefully with this property.", comment);
+        var xml = nodes.GetXml(assembly);
+        var xmlDocument = new XmlDocument();
+        xmlDocument.LoadXml(xml);
+
+        var node = xmlDocument.SelectSingleNode("//inheritdoc");
+
+        var memberDocumentation = new FakeMemberDocumentation(node);
+
+        var plainTextRenderer = new PlainTextRenderer(new XDoc());
+        var comment = plainTextRenderer.Render(memberDocumentation);
+
+        Assert.Equal("", comment);
     }
 
     [Fact]
-    public void Render_PlainTextRenderer_ShouldReturnOtherClassCrefProperty()
+    public void Render_ReturnsEmptyString_WhenDocumentationIsNull()
     {
-        // Arrange
-        var propertyDocumentation = _xDoc.Get(typeof(Dog).GetProperty(nameof(Dog.Field3))!);
-
         // Act
-        var comment = propertyDocumentation.ToPlainText();
+        var result = new PlainTextRenderer(new XDoc()).Render(null);
 
         // Assert
-        Assert.Equal("Field same as Cat.Weight", comment);
+        Assert.Equal(string.Empty, result);
     }
 
     [Fact]
-    public void Render_PlainTextRenderer_ShouldReturnTypeComment()
+    public void Render_ReturnsPlainText_WhenTextNodeProvided()
     {
         // Arrange
-        var propertyDocumentation = _xDoc.Get(typeof(Dog));
+        var textNode = new XmlDocument().CreateTextNode("Hello World");
+        var memberDocumentation = new FakeMemberDocumentation(textNode);
+        var plainTextRenderer = new PlainTextRenderer(new XDoc());
 
         // Act
-        var comment = propertyDocumentation.ToPlainText();
+        var result = plainTextRenderer.Render(memberDocumentation);
 
         // Assert
-        Assert.Equal("This is a class which represents a dog as defined by the interface IDog.", comment);
+        Assert.Equal("Hello World", result);
     }
 
     [Fact]
-    public void Render_PlainTextRenderer_ShouldReturnBaseTypeComment()
+    public void Render_NormalizesMultipleLinesToSingleLine_WhenForceSingleLineIsTrue()
     {
         // Arrange
-        var propertyDocumentation = _xDoc.Get(typeof(Cat));
+        var element = new XmlDocument().CreateElement("para");
+        element.InnerXml = "Line1\n   Line2\nLine3";
+
+        var memberDocumentation = new FakeMemberDocumentation(element);
+        var plainTextRenderer = new PlainTextRenderer(new XDoc());
 
         // Act
-        var comment = propertyDocumentation.ToPlainText();
+        var result = plainTextRenderer.Render(memberDocumentation);
 
         // Assert
-        Assert.NotNull(comment);
-
-        // Assert.Equal("Animal class", comment);
+        Assert.Equal("Line1 Line2 Line3", result);
     }
 
     [Fact]
-    public void Render_PlainTextRenderer_ShouldReturnFormattedText()
+    public void Render_RendersCrefReference_ReturnsShortTypeName()
     {
         // Arrange
-        const string xml = @"<member name=""P:MyCompany.Library.WeeklyMetrics.SuccessRatio"">
-                        <summary>
-                            The ratio of <see cref=""P:MyCompany.Library.WeeklyMetrics.Progress""/> to <see cref=""P:MyCompany.Library.WeeklyMetrics.Objective""/> for this <see cref=""T:MyCompany.Library.WeeklyMetric""/>.
-                        </summary>
-                    </member>";
+        var xmlDocument = new XmlDocument();
+        var xmlNode = xmlDocument.CreateNode(XmlNodeType.Element, "test", null);
+        var element = xmlDocument.CreateElement("see");
 
-        var memberDocumentation = new TestPropertyDocumentation(xml);
+        element.SetAttribute("cref", "T:BitzArt.XDoc.Models.SomeType");
+        xmlNode.AppendChild(element);
+
+        xmlDocument.AppendChild(xmlNode);
+
+        var memberDocumentation = new FakeMemberDocumentation(xmlNode);
+        var plainTextRenderer = new PlainTextRenderer(new XDoc());
 
         // Act
-        var comment = memberDocumentation.ToPlainText();
+        var result = plainTextRenderer.Render(memberDocumentation);
 
         // Assert
-        Assert.Contains("The ratio of WeeklyMetrics.Progress to WeeklyMetrics.Objective for this WeeklyMetric.", comment);
+        Assert.Equal("SomeType", result);
     }
 
     [Fact]
-    public void RenderInheritedDocumentation_PlainTextRenderer_ShouldReturnFormattedText()
+    public void Render_RendersCrefReference_ReturnsMethodName()
     {
         // Arrange
-        var propertyDocumentation = _xDoc.Get(typeof(Dog).GetProperty(nameof(Dog.Property1))!);
+        var xmlDocument = new XmlDocument();
+        var xmlNode = xmlDocument.CreateNode(XmlNodeType.Element, "test", null);
+        var element = xmlDocument.CreateElement("see");
+
+        element.SetAttribute("cref", "M:BitzArt.XDoc.Models.SomeType.SomeMethod");
+        xmlNode.AppendChild(element);
+
+        xmlDocument.AppendChild(xmlNode);
+
+        var memberDocumentation = new FakeMemberDocumentation(xmlNode);
+        var plainTextRenderer = new PlainTextRenderer(new XDoc());
 
         // Act
-        var text = propertyDocumentation.ToPlainText();
+        var result = plainTextRenderer.Render(memberDocumentation);
 
         // Assert
-        Assert.NotNull(text);
+        Assert.Equal("SomeType.SomeMethod", result);
+    }
 
-        // Assert.Contains("Description of Property1", text);
+    [Fact]
+    public void Render_ReturnsEmptyString_WhenXmlElementIsEmpty()
+    {
+        // Arrange
+        var element = new XmlDocument().CreateElement("empty");
+        var memberDocumentation = new FakeMemberDocumentation(element);
+        var plainTextRenderer = new PlainTextRenderer(new XDoc());
+
+        // Act
+        var result = plainTextRenderer.Render(memberDocumentation);
+
+        // Assert
+        Assert.Equal(string.Empty, result);
     }
 }

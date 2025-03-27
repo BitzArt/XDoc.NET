@@ -8,18 +8,20 @@
         <IsTestProject>true</IsTestProject>
         <TargetFramework>net9.0</TargetFramework>
 		<RootNamespace>BitzArt.XDoc.Tests</RootNamespace>
+        <GenerateDocumentationFile>true</GenerateDocumentationFile>
     </PropertyGroup>
 
     <ItemGroup>
         <PackageReference Include="coverlet.collector" Version="6.0.4" />
-        <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.8.0" />
+        <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.13.0" />
+        <PackageReference Include="Moq" Version="4.20.72" />
         <PackageReference Include="xunit" Version="2.9.3" />
         <PackageReference Include="xunit.runner.visualstudio" Version="3.0.2" />
     </ItemGroup>
 
     <ItemGroup>
       <ProjectReference Include="..\..\..\src\Render\BitzArt.XDoc.PlainText\BitzArt.XDoc.PlainText.csproj" />
-      <ProjectReference Include="..\..\MultiAssemblyTests\TestAssembly.B\TestAssembly.B.csproj" />
+      <ProjectReference Include="..\..\BitzArt.XDoc.Tests\BitzArt.XDoc.Tests.csproj" />
     </ItemGroup>
 
     <ItemGroup>

@@ -27,13 +27,12 @@
     </ItemGroup>
             
     <ItemGroup>
-        <None Include="..\..\assets\xdoc-logo.png" Pack="True" Visible="false" PackagePath="\"/>
-        <None Include="..\..\README.md" Pack="True" Visible="false" PackagePath="\"/>
+        <None Include="..\..\assets\xdoc-logo.png" Pack="True" Visible="false" PackagePath="\" />
+        <None Include="..\..\README.md" Pack="True" Visible="false" PackagePath="\" />
     </ItemGroup>
 
     <ItemGroup>
-        <PackageReference Include="JetBrains.Annotations" Version="2024.3.0" PrivateAssets="All"/>
-        <PackageReference Include="Microsoft.Extensions.DependencyInjection.Abstractions" Version="9.0.2"/>
+        <PackageReference Include="JetBrains.Annotations" Version="2024.3.0" PrivateAssets="All" />
     </ItemGroup>
 
 </Project>

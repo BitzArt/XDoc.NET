@@ -1,4 +1,3 @@
-using System.Collections.Frozen;
 using System.Reflection;
 using System.Xml;
 
@@ -7,19 +6,21 @@ namespace BitzArt.XDoc;
 /// <summary>
 /// Holds information about documentation of a <see cref="System.Type"/>.
 /// </summary>
-public sealed class TypeDocumentation : MemberDocumentation
+public sealed class TypeDocumentation : DocumentationElement, IDocumentationElement<Type>
 {
-    private readonly Dictionary<MemberInfo, MemberDocumentation> _memberData;
+    private readonly Dictionary<MemberInfo, DocumentationElement> _memberData;
 
     /// <summary>
     /// The <see cref="Type"/> this documentation if provided for.
     /// </summary>
     public Type Type { get; private init; }
 
+    Type IDocumentationElement<Type>.Target => Type;
+
     /// <summary>
     /// List of members declared by this <see cref="Type"/>.
     /// </summary>
-    internal IReadOnlyDictionary<MemberInfo, MemberDocumentation> MemberData => _memberData.ToFrozenDictionary();
+    internal IReadOnlyDictionary<MemberInfo, DocumentationElement> MemberData => _memberData.AsReadOnly();
 
     internal TypeDocumentation(XDoc source, Type type, XmlNode? node)
         : base(source, node)
@@ -54,12 +55,12 @@ public sealed class TypeDocumentation : MemberDocumentation
         => GetDocumentation<FieldDocumentation>(field);
 
     private TMemberDocumentationResult? GetDocumentation<TMemberDocumentationResult>(MemberInfo member)
-        where TMemberDocumentationResult : MemberDocumentation
+        where TMemberDocumentationResult : DocumentationElement
     {
         return (TMemberDocumentationResult?)GetDocumentation(member);
     }
     
-    internal MemberDocumentation? GetDocumentation(MemberInfo member)
+    internal DocumentationElement? GetDocumentation(MemberInfo member)
     {
         var memberInfo = Validate(member);
         var memberDocumentation = _memberData.GetValueOrDefault(memberInfo);
@@ -71,7 +72,7 @@ public sealed class TypeDocumentation : MemberDocumentation
     {
         if (member.DeclaringType != Type)
         {
-            throw new InvalidOperationException("The provided property is not defined in this type.");
+            throw new InvalidOperationException("The provided property is not declared in this type.");
         }
 
         if (member.DeclaringType != member.ReflectedType)
@@ -88,18 +89,12 @@ public sealed class TypeDocumentation : MemberDocumentation
         return member;
     }
 
-    /// <inheritdoc/>
-    public override string ToString() => $"{nameof(TypeDocumentation)} for {Type.Name!}";
-
-    /// <summary>
-    /// Adds documentation for a member declared by this <see cref="Type"/>.
-    /// </summary>
-    /// <param name="memberInfo"></param>
-    /// <param name="documentation"></param>
-    /// <typeparam name="T"></typeparam>
-    internal void AddMemberData<T>(MemberInfo memberInfo, TypeMemberDocumentation<T> documentation)
+    internal void AddMemberData<T>(MemberInfo memberInfo, MemberDocumentation<T> documentation)
         where T : MemberInfo
     {
         _memberData.Add(memberInfo, documentation);
     }
+
+    /// <inheritdoc/>
+    public override string ToString() => $"Documentation for Type '{Type.Name!}'";
 }

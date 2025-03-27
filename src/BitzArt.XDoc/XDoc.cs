@@ -25,18 +25,16 @@ namespace BitzArt.XDoc;
 /// </summary>
 public class XDoc
 {
-    private readonly ConcurrentDictionary<Assembly, AssemblyDocumentation> _collectedAssemblies = [];
+    private readonly ConcurrentDictionary<Assembly, AssemblyDocumentation> _fetchedAssemblies;
 
-    public IDocumentationReferenceResolver ReferenceResolver { get; private set; }
+    /// <summary>
+    /// Initializes a new instance of the <see cref="XDoc"/> class.
+    /// </summary>
+    public XDoc() : this(new()) { }
 
-    public XDoc()
+    internal XDoc(ConcurrentDictionary<Assembly, AssemblyDocumentation> fetchedAssemblies)
     {
-        ReferenceResolver = new SimpleDocumentationReferenceResolver();
-    }
-
-    public XDoc(IDocumentationReferenceResolver documentationReferenceResolver)
-    {
-        ReferenceResolver = documentationReferenceResolver;
+        _fetchedAssemblies = fetchedAssemblies;
     }
 
     /// <summary>
@@ -45,17 +43,17 @@ public class XDoc
     /// <param name="assembly">The <see cref="Assembly"/> to retrieve documentation for.</param>"/>
     /// <returns><see cref="AssemblyDocumentation"/> for the specified <see cref="Assembly"/>.</returns>
     public AssemblyDocumentation Get(Assembly assembly)
-        => _collectedAssemblies.TryGetValue(assembly, out var result)
+        => _fetchedAssemblies.TryGetValue(assembly, out var result)
             ? result
-            : Collect(assembly);
+            : Fetch(assembly);
 
-    private AssemblyDocumentation Collect(Assembly assembly)
+    private AssemblyDocumentation Fetch(Assembly assembly)
     {
         var result = new AssemblyDocumentation(this, assembly);
 
-        if (!_collectedAssemblies.TryAdd(assembly, result))
+        if (!_fetchedAssemblies.TryAdd(assembly, result))
         {
-            return _collectedAssemblies[assembly];
+            return _fetchedAssemblies[assembly];
         }
 
         return result;
@@ -117,6 +115,6 @@ public class XDoc
     /// </summary>
     /// <param name="memberInfo"></param>
     /// <returns></returns>
-    public MemberDocumentation? Get(MemberInfo memberInfo)
+    public DocumentationElement? Get(MemberInfo memberInfo)
         => Get(memberInfo.DeclaringType!)?.GetDocumentation(memberInfo);
 }

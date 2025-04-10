@@ -3,8 +3,7 @@ using System.Xml;
 namespace BitzArt.XDoc;
 
 /// <summary>
-/// All documentation classes should inherit from this class.
-/// This class contains code applicable to any member documentation (both Type and MemberInfo).
+/// A base class for <see cref="XDoc"/> documentation elements.
 /// </summary>
 public abstract class DocumentationElement : IDocumentationElement
 {

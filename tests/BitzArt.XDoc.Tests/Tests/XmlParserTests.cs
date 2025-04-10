@@ -116,10 +116,11 @@ public class XmlParserTests
 
         var typeDoc = results.First().Value;
 
-        Assert.NotNull(typeDoc.MemberData);
-        Assert.Single(typeDoc.MemberData);
+        var memberData = typeDoc.MemberData;
+        Assert.NotNull(memberData);
+        Assert.Single(memberData);
 
-        var member = typeDoc.MemberData.First();
+        var member = memberData.First();
         
         Assert.Equal(testMember, member.Key);
 

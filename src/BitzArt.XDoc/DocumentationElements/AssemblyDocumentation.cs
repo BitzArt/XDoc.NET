@@ -2,9 +2,7 @@ using System.Reflection;
 
 namespace BitzArt.XDoc;
 
-/// <summary>
-/// Holds information about the documentation of an <see cref="System.Reflection.Assembly"/>.
-/// </summary>
+/// <inheritdoc/>
 public sealed class AssemblyDocumentation : DocumentationElement, IDocumentationElement<Assembly>
 {
     /// <summary>
@@ -33,7 +31,7 @@ public sealed class AssemblyDocumentation : DocumentationElement, IDocumentation
     /// </summary>
     /// <param name="type">The <see cref="Type"/> to retrieve documentation for.</param>
     /// <returns><see cref="TypeDocumentation"/> for the specified <see cref="Type"/> if available; otherwise, <see langword="null"/>.</returns>
-    /// <exception cref="InvalidOperationException">Thrown when the provided <see cref="Type"/> is not defined in this assembly.</exception>
+    /// <exception cref="InvalidOperationException"/>
     public TypeDocumentation? GetDocumentation(Type type)
     {
         if (type.Assembly != Assembly)

@@ -8,7 +8,6 @@
         <IsTestProject>true</IsTestProject>
         <TargetFramework>net9.0</TargetFramework>
 		<RootNamespace>BitzArt.XDoc.PlainText.Tests</RootNamespace>
-        <GenerateDocumentationFile>true</GenerateDocumentationFile>
     </PropertyGroup>
 
     <ItemGroup>
@@ -21,7 +20,7 @@
 
     <ItemGroup>
       <ProjectReference Include="..\..\..\src\Render\BitzArt.XDoc.PlainText\BitzArt.XDoc.PlainText.csproj" />
-      <ProjectReference Include="..\..\BitzArt.XDoc.Tests\BitzArt.XDoc.Tests.csproj" />
+      <ProjectReference Include="..\..\BitzArt.XDoc.TestNodes\BitzArt.XDoc.TestNodes.csproj" />
     </ItemGroup>
 
     <ItemGroup>

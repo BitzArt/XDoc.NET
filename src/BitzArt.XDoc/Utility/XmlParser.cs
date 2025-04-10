@@ -74,85 +74,63 @@ internal class XmlParser
     }
 
     private PropertyDocumentation ParsePropertyNode(XmlNode node, string name)
-    {
-        var (type, memberName) = ResolveTypeAndMemberName(name);
-
-        var propertyInfo = type.GetProperty(memberName)
-                           ?? throw new InvalidOperationException(
-                               $"Property '{memberName}' not found in type '{type.Name}'.");
-
-        var typeDocumentation = ResolveOwnerType(type);
-
-        var propertyDocumentation = new PropertyDocumentation(_source, propertyInfo, node);
-
-        typeDocumentation.AddMemberData(propertyInfo, propertyDocumentation);
-
-        return propertyDocumentation;
-    }
+        => ParseMemberNode(name,
+            (type, memberName) => type.GetProperty(memberName),
+            member => new PropertyDocumentation(_source, member, node));
 
     private FieldDocumentation ParseFieldNode(XmlNode node, string name)
-    {
-        var (type, memberName) = ResolveTypeAndMemberName(name);
-
-        var fieldInfo = type.GetField(memberName)
-                        ?? throw new InvalidOperationException(
-                            $"Field '{memberName}' not found in type '{type.Name}'.");
-
-        if (fieldInfo is null)
-        {
-            throw new InvalidOperationException($"Field '{memberName}' not found in type '{type.Name}'.");
-        }
-
-        var typeDocumentation = ResolveOwnerType(type);
-
-        var fieldDocumentation = new FieldDocumentation(_source, fieldInfo, node);
-
-        typeDocumentation.AddMemberData(fieldInfo, fieldDocumentation);
-
-        return fieldDocumentation;
-    }
+        => ParseMemberNode(name,
+            (type, memberName) => type.GetField(memberName),
+            member => new FieldDocumentation(_source, member, node));
 
     private MethodDocumentation? ParseMethodNode(XmlNode node, string name)
+        => ParseMemberNode(name,
+            (type, memberName) =>
+            {
+                var parameters = GetMethodParameters(memberName);
+
+                return type.GetMethods()
+                    .Where(method => method.Name == memberName)
+                    .Where(method =>
+                    {
+                        var methodParameters = method
+                            .GetParameters()
+                            .Select(o => GetTypeFriendlyName(o.ParameterType))
+                            .ToList();
+
+                        if (methodParameters.Count != parameters.Count)
+                        {
+                            return false;
+                        }
+
+                        if (methodParameters.All(mp => parameters.Contains(mp)))
+                        {
+                            return true;
+                        }
+
+                        return false;
+                    })
+                    .SingleOrDefault();
+            },
+            member => new MethodDocumentation(_source, member, node));
+
+    private TDocumentation ParseMemberNode<TMember, TDocumentation>(string name, Func<Type, string, TMember?> getMember, Func<TMember, TDocumentation> getDocumentation)
+        where TMember : MemberInfo
+        where TDocumentation : MemberDocumentation<TMember>
     {
         var (type, memberName) = ResolveTypeAndMemberName(name);
-        var parameters = GetMethodParameters(name);
-        var typeMethods = type.GetMethods();
 
-        var methodInfo = typeMethods
-            .Where(method => method.Name == memberName)
-            .Where(method =>
-            {
-                var methodParameters = method
-                    .GetParameters()
-                    .Select(o => GetTypeFriendlyName(o.ParameterType))
-                    .ToList();
+        var memberInfo = getMember.Invoke(type, memberName)
+            ?? throw new InvalidOperationException(
+                $"Member '{memberName}' not found in type '{type.Name}'.");
 
-                if (methodParameters.Count != parameters.Count)
-                {
-                    return false;
-                }
+        var typeDocumentation = ResolveTypeDocumentation(type);
 
-                if (methodParameters.All(mp => parameters.Contains(mp)))
-                {
-                    return true;
-                }
+        var memberDocumentation = getDocumentation.Invoke(memberInfo);
 
-                return false;
-            })
-            .SingleOrDefault();
+        typeDocumentation.AddMemberData(memberInfo, memberDocumentation);
 
-        if (methodInfo is null)
-        {
-            return null;
-        }
-
-        var typeDocumentation = ResolveOwnerType(type);
-
-        var methodDocumentation = new MethodDocumentation(_source, methodInfo, node);
-
-        typeDocumentation.AddMemberData(methodInfo, methodDocumentation);
-
-        return methodDocumentation;
+        return memberDocumentation;
     }
 
     /// <summary>
@@ -188,11 +166,7 @@ internal class XmlParser
         return friendlyName;
     }
 
-    /// <summary>
-    /// Get the parameters of a method from the XML documentation.
-    /// </summary>
-    /// <param name="xmlMember"></param>
-    /// <returns></returns>
+    // Fetches the parameter type names of a method from the XML documentation.
     private static List<string> GetMethodParameters(string xmlMember)
     {
         var start = xmlMember.IndexOf('(');
@@ -248,7 +222,9 @@ internal class XmlParser
         return (type, memberName);
     }
 
-    private TypeDocumentation ResolveOwnerType(Type type)
+    // finds the type documentation for the given type if already exists;
+    // otherwise, creates a new one and adds it to the results.
+    private TypeDocumentation ResolveTypeDocumentation(Type type)
     {
         if (_results.TryGetValue(type, out var result))
         {

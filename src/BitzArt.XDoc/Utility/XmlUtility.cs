@@ -18,7 +18,7 @@ internal static class XmlUtility
 
         if (string.IsNullOrEmpty(filePath))
         {
-            return new Dictionary<Type, TypeDocumentation>();
+            return [];
         }
 
         // 'using' statement ensures the file stream is disposed of after use

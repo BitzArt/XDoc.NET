@@ -1,11 +1,12 @@
+using System.Reflection;
 using System.Xml;
 
 namespace BitzArt.XDoc;
 
 /// <summary>
-/// Contains documentation for a specific target.
+/// Contains documentation for a specific value of type <typeparamref name="TTarget"/>.
 /// </summary>
-/// <typeparam name="TTarget">Documentation target type.</typeparam>
+/// <typeparam name="TTarget">Type of the documentation owner.</typeparam>
 public interface IDocumentationElement<TTarget> : IDocumentationElement
     where TTarget : class
 {
@@ -15,7 +16,9 @@ public interface IDocumentationElement<TTarget> : IDocumentationElement
     public TTarget Target { get; }
 }
 
-/// <inheritdoc cref="IDocumentationElement{TTarget}"/>
+/// <summary>
+/// Contains documentation for a specific declared member of the <see cref="Assembly"/>
+/// </summary>
 public interface IDocumentationElement
 {
     /// <summary>

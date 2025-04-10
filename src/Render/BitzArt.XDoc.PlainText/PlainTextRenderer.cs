@@ -37,40 +37,17 @@ public class PlainTextRenderer
             return string.Empty;
         }
 
-        var target = GetTarget(documentation);
+        var target = (documentation is IMemberDocumentation memberDocumentation)
+            ? memberDocumentation.Member
+            : null;
 
         return Normalize(Render(documentation.Node, target));
-    }
-
-    private MemberInfo? GetTarget(IDocumentationElement documentation)
-    {
-        if (documentation is IDocumentationElement<Type> typeDocumentation)
-        {
-            return typeDocumentation.Target;
-        }
-
-        if (documentation is IDocumentationElement<PropertyInfo> propertyDocumentation)
-        {
-            return propertyDocumentation.Target;
-        }
-
-        if (documentation is IDocumentationElement<MethodInfo> methodDocumentation)
-        {
-            return methodDocumentation.Target;
-        }
-
-        if (documentation is IDocumentationElement<FieldInfo> fieldDocumentation)
-        {
-            return fieldDocumentation.Target;
-        }
-
-        return null;
     }
 
     /// <summary>
     /// Normalize the input string by removing extra empty lines and trimming each line.
     /// </summary>
-    private string Normalize(string input)
+    private static string Normalize(string input)
     {
         if (string.IsNullOrWhiteSpace(input))
         {
@@ -101,15 +78,15 @@ public class PlainTextRenderer
     /// <returns>The plain text representation of the XML element.</returns>
     private string RenderXmlElement(XmlElement element, MemberInfo? target)
     {
+        // Reference
         if (element.Attributes["cref"] is not null)
         {
-            // Reference
             return RenderReference(element);
         }
 
+        // Direct inheritance
         if (element.Name == "inheritdoc")
         {
-            // Direct inheritance
             return RenderDirectInheritance(target);
         }
 

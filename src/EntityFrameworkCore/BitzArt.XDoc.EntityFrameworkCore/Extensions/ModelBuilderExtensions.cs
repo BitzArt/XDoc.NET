@@ -1,5 +1,6 @@
 using JetBrains.Annotations;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Metadata;
 
 namespace BitzArt.XDoc;
 
@@ -14,61 +15,76 @@ public static class ModelBuilderExtensions
     /// </summary>
     /// <param name="modelBuilder"></param>
     /// <param name="xDoc"></param>
-    public static void ConfigureComments(this ModelBuilder modelBuilder, XDoc xDoc)
+    public static ModelBuilder ConfigureComments(this ModelBuilder modelBuilder, XDoc xDoc)
     {
         var entityTypes = modelBuilder.Model.GetEntityTypes();
 
         foreach (var entityType in entityTypes)
         {
-            var typeDocumentation = xDoc.Get(entityType.ClrType);
-
-            if (typeDocumentation is null)
-            {
-                continue;
-            }
-
-            var entityComment = typeDocumentation.ToPlainText();
-
-            // For owned entities, we don't set the comment on the entity itself
-            // But we will set the comment on the properties
-
-            var isOwned = entityType.IsOwned();
-            var tableName = entityType.GetTableName();
-
-            if (!isOwned && tableName is not null)
-            {
-                entityType.SetComment(entityComment);
-            }
+            ConfigureEntityTypeComment(xDoc, entityType);
 
             var properties = entityType.GetProperties();
 
             foreach (var property in properties)
             {
-                var isShadowProperty = property.IsShadowProperty();
-
-                if (isShadowProperty)
-                {
-                    continue;
-                }
-
-                var propertyInfo = entityType.ClrType.GetProperty(property.Name);
-
-                if (propertyInfo is null)
-                {
-                    continue;
-                }
-
-                var propertyDocumentation = xDoc.Get(propertyInfo);
-
-                if (propertyDocumentation is null)
-                {
-                    continue;
-                }
-
-                var propertyComment = propertyDocumentation.ToPlainText();
-
-                property.SetComment(propertyComment);
+                ConfigurePropertyComment(xDoc, entityType, property);
             }
         }
+
+        return modelBuilder;
     }
+
+    private static void ConfigureEntityTypeComment(XDoc xDoc, IMutableEntityType entityType)
+    {
+        var typeDocumentation = xDoc.Get(entityType.ClrType);
+
+        if (typeDocumentation is  null)
+        {
+            return;
+        }
+        
+        var isOwned = entityType.IsOwned();
+        var tableName = entityType.GetTableName();
+
+        if (isOwned || tableName is null)
+        {
+            // For owned entities, we don't set the comment on the entity itself
+            // But we will set the comment on the properties
+            
+            return;
+        }
+        
+        var entityComment = typeDocumentation.ToPlainText();
+            
+        entityType.SetComment(entityComment);
+    }
+    
+    private static void ConfigurePropertyComment(XDoc xDoc, IMutableEntityType entityType, IMutableProperty property)
+    {
+        var isShadowProperty = property.IsShadowProperty();
+
+        if (isShadowProperty)
+        {
+            return;
+        }
+
+        var propertyInfo = entityType.ClrType.GetProperty(property.Name);
+
+        if (propertyInfo is null)
+        {
+            return;
+        }
+
+        var propertyDocumentation = xDoc.Get(propertyInfo);
+
+        if (propertyDocumentation is null)
+        {
+            return;
+        }
+
+        var propertyComment = propertyDocumentation.ToPlainText();
+
+        property.SetComment(propertyComment);
+    }
+    
 }

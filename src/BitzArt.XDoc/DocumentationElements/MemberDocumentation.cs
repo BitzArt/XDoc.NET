@@ -59,9 +59,9 @@ public sealed class FieldDocumentation : MemberDocumentation<FieldInfo>
 }
 
 /// <inheritdoc/>
-public sealed class MethodDocumentation : MemberDocumentation<MethodInfo>
+public sealed class MethodDocumentation : MemberDocumentation<MethodBase>
 {
-    internal MethodDocumentation(XDoc source, MethodInfo method, XmlNode? node)
+    internal MethodDocumentation(XDoc source, MethodBase method, XmlNode? node)
         : base(source, method, node) { }
 }
 

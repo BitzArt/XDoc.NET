@@ -10,6 +10,13 @@ internal class XmlParser
     private readonly XmlDocument _xml;
     private readonly Dictionary<Type, TypeDocumentation> _results;
 
+    /// <summary>
+    /// Parses an XML documentation file and creates a dictionary mapping types to their documentation.
+    /// </summary>
+    /// <param name="source">The XDoc instance that initiated the parsing</param>
+    /// <param name="assembly">The assembly containing the types to be documented</param>
+    /// <param name="xml">The XML file containing the auto-generated documentation</param>
+    /// <returns>A dictionary mapping types to their TypeDocumentation objects</returns>
     public static Dictionary<Type, TypeDocumentation> Parse(XDoc source, Assembly assembly, XmlDocument xml)
     {
         var parser = new XmlParser(source, assembly, xml);
@@ -39,32 +46,31 @@ internal class XmlParser
 
     private void Parse(XmlNode node)
     {
-        try
+        if (node.Attributes is null || node.Attributes.Count == 0)
         {
-            if (node.Attributes is null || node.Attributes.Count == 0)
-                throw new InvalidOperationException("Invalid XML node.");
-
-            var name = (node.Attributes["name"]?.Value)
-                       ?? throw new InvalidOperationException($"No 'name' attribute found in XML node '{node.Value}'.");
-
-            switch (name[0])
-            {
-                case 'T': ParseTypeNode(node, name[2..]); break;
-                case 'P': ParsePropertyNode(node, name[2..]); break;
-                case 'F': ParseFieldNode(node, name[2..]); break;
-                case 'M': ParseMethodNode(node, name[2..]); break;
-            }
+            throw new InvalidOperationException("Invalid XML node.");
         }
-        catch (Exception ex)
+
+        var name = (node.Attributes["name"]?.Value);
+
+        if (name == null)
         {
-          // temporary workaround
+            throw new InvalidOperationException($"No 'name' attribute found in XML node '{node.Value}'.");
+        }
+
+        switch (name[0])
+        {
+            case 'T': ParseTypeNode(node, name[2..]); break; //Types start with 'T'
+            case 'P': ParsePropertyNode(node, name[2..]); break; //Properties start with 'P'
+            case 'F': ParseFieldNode(node, name[2..]); break; //Fields start with 'F'
+            case 'M': ParseMethodNode(node, name[2..]); break; //Methods and ctors start with 'M'
         }
     }
 
     private TypeDocumentation ParseTypeNode(XmlNode node, string name)
     {
         var type = _assembly.GetType(name)
-            ?? throw new InvalidOperationException($"Type '{name}' not found.");
+                   ?? throw new InvalidOperationException($"Type '{name}' not found.");
 
         // We could handle this case by finding and updating the existing object,
         // but I don't see a reason why this would be necessary.
@@ -92,58 +98,93 @@ internal class XmlParser
 
     private MethodDocumentation? ParseMethodNode(XmlNode node, string name)
         => ParseMemberNode(name,
-            (type, memberName, parameters) =>  GetMethod(type, memberName, parameters),
+            (type, memberName, parameters) => GetMethodOrConstructor(type, memberName, parameters),
             member => new MethodDocumentation(_source, member, node));
 
-    private static MethodInfo? GetMethod(Type type, string name, IReadOnlyCollection<string> parameters)
-    {
-        // temporary workaround for ctors and generic type nodes,
-        // until proper handling is implemented
-        if (IsCtor(name) || IsGeneric(name))
+    private static MethodBase? GetMethodOrConstructor(Type type, string name, IReadOnlyCollection<string> parameters)
+        => name switch
         {
-            return null;
-        }
-        
-        return type.GetMethods()
+            "#ctor" => GetConstructor(type, parameters),
+            "#cctor" => GetConstructor(type, parameters, isStatic: true),
+            _ => GetMethod(type, name, parameters)
+        };
+
+    private static MethodInfo? GetMethod(Type ownerType, string name, IReadOnlyCollection<string> parameters)
+    {
+        var methods = ownerType.GetMethods();
+
+        var method = methods
             .Where(method => method.Name == name)
-            .Where(method =>
+            .SingleOrDefault(method =>
             {
-                var methodParameters = method
-                    .GetParameters()
-                    .Select(o => GetTypeFriendlyName(o.ParameterType))
-                    .ToList();
+                var actualParameters = method.GetParameters();
 
-                if (methodParameters.Count != parameters.Count)
-                {
-                    return false;
-                }
+                return HasMatchingParameterTypes(actualParameters, parameters);
+            });
 
-                if (methodParameters.All(parameters.Contains))
-                {
-                    return true;
-                }
-
-                return false;
-            })
-            .SingleOrDefault();
+        return method;
     }
 
-    private static bool IsGeneric(string value)
+    private static ConstructorInfo? GetConstructor(Type ownerType, IReadOnlyCollection<string> parameters, bool isStatic = false)
     {
-        return value.Contains('`');
-    }
-    
-    private static bool IsCtor(string value)
-    {
-        return value.EndsWith("#ctor", StringComparison.Ordinal);
+        var bindingFlags = isStatic
+            ? BindingFlags.Static | BindingFlags.Public | BindingFlags.NonPublic
+            : BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic;
+
+        var constructors = ownerType.GetConstructors(bindingFlags);
+
+        var constructor = constructors.SingleOrDefault(ctor =>
+        {
+            var actualParameters = ctor.GetParameters();
+
+            return HasMatchingParameterTypes(actualParameters, parameters);
+        });
+
+        return constructor;
     }
 
-    private TDocumentation ParseMemberNode<TMember, TDocumentation>(string name, Func<Type, string, IReadOnlyCollection<string>, TMember?> getMember, Func<TMember, TDocumentation> getDocumentation)
+    /// <summary>
+    /// Determines if a method or constructor's parameter types match the expected parameter type names.
+    /// </summary>
+    /// <param name="actualParameters">
+    /// Collection of actual parameter information from the method or constructor.
+    /// </param>
+    /// <param name="expectedParameters">Collection of expected parameter type names.</param>
+    /// <returns>True if the parameter signatures match; otherwise, false.</returns>
+    private static bool HasMatchingParameterTypes(
+        ParameterInfo[] actualParameters,
+        IReadOnlyCollection<string> expectedParameters)
+    {
+        if (actualParameters.Length == 0 && expectedParameters.Count == 0)
+        {
+            return true;
+        }
+
+        if (actualParameters.Length != expectedParameters.Count)
+        {
+            return false;
+        }
+
+        var parameters = actualParameters
+            .Select(p => GetTypeFriendlyName(p.ParameterType))
+            .ToList();
+
+        return parameters.All(expectedParameters.Contains);
+    }
+
+    private TDocumentation ParseMemberNode<TMember, TDocumentation>(
+        string name,
+        Func<Type, string, IReadOnlyCollection<string>, TMember?> getMember,
+        Func<TMember, TDocumentation> getDocumentation)
         where TMember : MemberInfo
         where TDocumentation : MemberDocumentation<TMember>
     {
-        var (type, memberName) = ResolveTypeAndMemberName(name);
-        var parameters = ResolveMethodParameters(name);
+        var (typeName, memberName) = XmlMemberNameResolver.ResolveTypeAndMemberName(name);
+
+        var type = _assembly.GetType(typeName)
+            ?? throw new InvalidOperationException($"Type '{typeName}' not found.");
+
+        var parameters = XmlMemberNameResolver.ResolveMethodParameters(name);
 
         var memberInfo = getMember.Invoke(type, memberName, parameters)
             ?? throw new InvalidOperationException($"Member '{memberName}' not found in type '{type.Name}'.");
@@ -157,44 +198,16 @@ internal class XmlParser
         return memberDocumentation;
     }
 
-    private static IReadOnlyCollection<string> ResolveMethodParameters(string name)
-    {
-        var startIndex = name.IndexOf('(');
-        
-        if (startIndex == -1)
-        {
-            return [];
-        }
-    
-        var endIndex = name.LastIndexOf(')');
-
-        if (endIndex <= startIndex)
-        {
-            return [];
-        }
-    
-        var parametersString = name.Substring(startIndex + 1, endIndex - startIndex - 1);
-        
-        if (string.IsNullOrWhiteSpace(parametersString))
-        {
-            return [];
-        }
-
-        var result = parametersString
-            .Split(',', StringSplitOptions.RemoveEmptyEntries)
-            .Select(p => p.Trim())
-            .Select(p => p.Replace("`0", ""))
-            .Select(p => p.Replace("`", ""))
-            .ToList();
-        
-        return result;
-    }
-
     /// <summary>
-    /// Get the friendly name of a type
+    /// Converts a Type object to a friendly readable string representation.
+    /// Handles generic types by recursively formatting their type arguments.
     /// </summary>
-    /// <param name="type"></param>
-    /// <returns></returns>
+    /// <param name="type">The Type object to convert to a string representation.</param>
+    /// <returns>
+    /// A string representation of the type. For non-generic types, returns the full name.
+    /// For generic types, returns the type name followed by generic arguments in curly braces
+    /// (e.g., "System.Collections.Generic.List{System.String}").
+    /// </returns>
     private static string GetTypeFriendlyName(Type type)
     {
         if (!type.IsGenericType)
@@ -207,51 +220,25 @@ internal class XmlParser
         var typeName = genericTypeDefinition.FullName;
 
         // Remove the `1 from the generic type name
-        if (!string.IsNullOrWhiteSpace(typeName))
+        if (IsGeneric(typeName))
         {
-            if (typeName.Contains('`'))
-            {
-                typeName = typeName[..typeName.IndexOf('`')];
-            }
+            var indexOfStartGenericParameter = typeName!.IndexOf('`');
+
+            typeName = typeName[..indexOfStartGenericParameter];
         }
 
         // Get the generic arguments and format them recursively
-        var genericArgs = string.Join(", ", type.GetGenericArguments().Select(GetTypeFriendlyName));
+        var genericArgs = string.Join(",", type.GetGenericArguments().Select(GetTypeFriendlyName));
 
-        var friendlyName = $"{typeName}{{{genericArgs}}}";
-
-        return friendlyName;
+        return typeName + '{' + genericArgs + '}';
     }
 
-    private (Type type, string memberName) ResolveTypeAndMemberName(string name)
-    {
-        if (name.Contains('`'))
-        {
-            name = name[..name.IndexOf('`')];
-        }
+    private static bool IsGeneric(string? typeName) => !string.IsNullOrWhiteSpace(typeName) && typeName.Contains('`');
 
-        if (name.Contains('('))
-        {
-            name = name[..name.IndexOf('(')];
-        }
-
-        var index = name.LastIndexOf('.');
-
-        if (index == -1)
-        {
-            throw new InvalidOperationException("Encountered invalid XML node.");
-        }
-
-        var (typeName, memberName) = (name[..index], name[(index + 1)..]);
-
-        var type = _assembly.GetType(typeName)
-                   ?? throw new InvalidOperationException($"Type '{typeName}' not found.");
-
-        return (type, memberName);
-    }
-
-    // finds the type documentation for the given type if already exists;
-    // otherwise, creates a new one and adds it to the results.
+    /// <summary>
+    /// Finds the type documentation for the given type if already exists;
+    /// otherwise, creates a new one and adds it to the results.
+    /// </summary>
     private TypeDocumentation ResolveTypeDocumentation(Type type)
     {
         if (_results.TryGetValue(type, out var result))

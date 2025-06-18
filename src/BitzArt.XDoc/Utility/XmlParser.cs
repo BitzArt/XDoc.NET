@@ -179,12 +179,10 @@ internal class XmlParser
         where TMember : MemberInfo
         where TDocumentation : MemberDocumentation<TMember>
     {
-        var (typeName, memberName) = XmlMemberNameResolver.ResolveTypeAndMemberName(name);
+        var (typeName, memberName, parameters) = XmlMemberNameResolver.ResolveMemberSignature(name);
 
         var type = _assembly.GetType(typeName)
             ?? throw new InvalidOperationException($"Type '{typeName}' not found.");
-
-        var parameters = XmlMemberNameResolver.ResolveMethodParameters(name);
 
         var memberInfo = getMember.Invoke(type, memberName, parameters)
             ?? throw new InvalidOperationException($"Member '{memberName}' not found in type '{type.Name}'.");

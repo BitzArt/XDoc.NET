@@ -10,6 +10,22 @@ namespace BitzArt.XDoc;
 internal static class XmlMemberNameResolver
 {
     /// <summary>
+    /// Resolves a fully qualified member signature into its type name, member name, and method parameters.
+    /// </summary>
+    /// <param name="xmlDocumentationMemberName"></param>
+    /// <returns>
+    /// A tuple containing the resolved type name, member name, and a read-only collection of parameter type names.
+    /// </returns>
+    public static (string typeName, string memberName, IReadOnlyCollection<string> parameters)
+        ResolveMemberSignature(string xmlDocumentationMemberName)
+    {
+        var (typeName, memberName) = ResolveTypeAndMemberName(xmlDocumentationMemberName);
+        var parameters = ResolveMethodParameters(xmlDocumentationMemberName);
+        
+        return (typeName, memberName, parameters);
+    }
+
+    /// <summary>
     /// Resolves a qualified member name into its associated type and member name.
     /// Handles special cases like generic types and methods with parameters.
     /// </summary>
@@ -20,7 +36,7 @@ internal static class XmlMemberNameResolver
     /// <exception cref="InvalidOperationException">
     /// Thrown when the name doesn't contain a type/member separator or when the type cannot be found
     /// </exception>
-    public static (string typeName, string memberName) ResolveTypeAndMemberName(string xmlDocumentationMemberName)
+    internal static (string typeName, string memberName) ResolveTypeAndMemberName(string xmlDocumentationMemberName)
     {
         // A member name containing an opening parenthesis indicates a method.
         if (xmlDocumentationMemberName.Contains('('))
@@ -31,11 +47,16 @@ internal static class XmlMemberNameResolver
             xmlDocumentationMemberName = xmlDocumentationMemberName[..xmlDocumentationMemberName.IndexOf('(')];
         }
 
-        EnsureContainsTypeSeparator(xmlDocumentationMemberName);
-
         // Find the position of the last dot in the member name, which separates
         // the type name from the member name (e.g., "Namespace.TypeName.MemberName" -> position of last dot)
         var indexOfLastDot = xmlDocumentationMemberName.LastIndexOf('.');
+
+        // Ensures the XML documentation member name contains a type separator (dot).
+        if (indexOfLastDot == -1)
+        {
+            throw new InvalidOperationException(
+                $"XML documentation member name '{xmlDocumentationMemberName}' does not contain a type separator.");
+        }
 
         var typeName = xmlDocumentationMemberName[..indexOfLastDot];
         var memberName = xmlDocumentationMemberName[(indexOfLastDot + 1)..];
@@ -64,24 +85,6 @@ internal static class XmlMemberNameResolver
     }
 
     /// <summary>
-    /// Ensures the XML documentation member name contains a type separator (dot).
-    /// </summary>
-    /// <param name="xmlDocumentationMemberName">The XML documentation member name to check.</param>
-    /// <exception cref="InvalidOperationException">
-    /// Thrown when the XML documentation member name doesn't contain a type separator.
-    /// </exception>
-    private static void EnsureContainsTypeSeparator(string xmlDocumentationMemberName)
-    {
-        var indexOfLastDot = xmlDocumentationMemberName.LastIndexOf('.');
-
-        if (indexOfLastDot == -1)
-        {
-            throw new InvalidOperationException(
-                $"XML documentation member name '{xmlDocumentationMemberName}' does not contain a type separator.");
-        }
-    }
-
-    /// <summary>
     /// Extracts the method parameter type names from a fully qualified member signature.
     /// Handles nested generic parameters and returns a collection of cleaned parameter type names.
     /// </summary>
@@ -91,7 +94,7 @@ internal static class XmlMemberNameResolver
     /// <returns>
     /// A read-only collection of parameter type names as strings. Returns an empty collection if no parameters are found.
     /// </returns>
-    public static IReadOnlyCollection<string> ResolveMethodParameters(string xmlDocumentationMemberName)
+    internal static IReadOnlyCollection<string> ResolveMethodParameters(string xmlDocumentationMemberName)
     {
         var parameterListStartIndex = xmlDocumentationMemberName.IndexOf('(');
 

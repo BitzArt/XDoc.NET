@@ -117,12 +117,12 @@ public class PlainTextRenderer
     private string RenderDirectInheritance(IMemberDocumentation documentation)
     {
         var targetDocumentation = documentation.GetInheritanceTargetDocumentation();
-        
+
         if (targetDocumentation is null)
         {
             return string.Empty;
         }
-        
+
         return Render(targetDocumentation);
     }
 

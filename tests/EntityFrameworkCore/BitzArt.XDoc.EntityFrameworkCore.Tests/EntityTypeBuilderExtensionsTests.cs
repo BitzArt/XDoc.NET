@@ -155,7 +155,7 @@ public class EntityTypeBuilderExtensionsTests
                 .Entity<MyFirstClass>()
                 .Property<string>(propertyName)
                 .HasColumnName(propertyName)
-                .HasComment<MySecondClass, string?>(xdoc, propertyName, o => o.NullableName)
+                .HasComment<MySecondClass, string?, string>(xdoc, o => o.NullableName)
                 .IsRequired()
                 .HasColumnType("string");
         });
@@ -186,7 +186,7 @@ public class EntityTypeBuilderExtensionsTests
                 .Entity<MyFirstClass>()
                 .Property<string>(propertyName)
                 .HasColumnName(propertyName)
-                .HasComment(xdoc, (MySecondClass o) => o.NullableName)
+                .HasComment<MySecondClass, string?, string>(xdoc, o => o.NullableName)
                 .IsRequired()
                 .HasColumnType("string");
         });
@@ -218,7 +218,7 @@ public class EntityTypeBuilderExtensionsTests
                 builder
                     .Property<int>(shadowPropertyName)
                     .HasColumnName(shadowPropertyName)
-                    .HasComment<MySecondClass, int?>(xdoc, shadowPropertyName, o => o.NullableValue)
+                    .HasComment<MySecondClass, int?, int>(xdoc, o => o.NullableValue)
                     .IsRequired()
                     .HasColumnType("int");
             });
@@ -252,7 +252,7 @@ public class EntityTypeBuilderExtensionsTests
                 .Entity<MyFirstClass>()
                 .Property<double>(propertyName)
                 .HasColumnName(propertyName)
-                .HasComment<MySecondClass, double?>(xdoc, propertyName, o => o.NullableDouble)
+                .HasComment<MySecondClass, double?, double>(xdoc, o => o.NullableDouble)
                 .IsRequired()
                 .HasColumnType("double");
         });

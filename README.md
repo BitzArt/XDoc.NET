@@ -8,7 +8,8 @@ A lightweight and efficient tool for parsing and managing C# XML documentation c
 
 # BitzArt.XDoc
 
-BitzArt.XDoc is a lightweight .NET library for parsing and accessing XML documentation comments from your C# code. It provides an intuitive API to retrieve documentation for:
+BitzArt.XDoc is a lightweight .NET library for parsing and accessing XML documentation comments from your C# code. 
+It provides an intuitive API to retrieve documentation for:
 * Types/classes
 * Properties
 * Methods
@@ -84,9 +85,12 @@ protected override void OnModelCreating(ModelBuilder modelBuilder)
 ```
 
 ## Recommendations
-Each XDoc instance maintains its own cache of parsed documentation in a `ConcurrentDictionary<Assembly, AssemblyDocumentation>`. Using multiple instances unnecessarily duplicates this data in memory
+Each XDoc instance maintains its own cache of parsed documentation in a 
+`ConcurrentDictionary<Assembly, AssemblyDocumentation>`. Using multiple instances unnecessarily duplicates 
+this data in memory.
 
-If your application provides documentation-related services (like API documentation generation), maintaining a single pre-loaded XDoc instance can significantly improve response times.
+If your application provides documentation-related services (like API documentation generation), maintaining 
+a single pre-loaded XDoc instance can significantly improve response times.
 
 ### Possible approaches
 
@@ -96,4 +100,34 @@ Register XDoc as a singleton in your application's dependency injection containe
 #### Factory
 Create a factory that provides access to a shared XDoc instance:
 
-By following these recommendations, you can ensure that XML documentation is parsed only once per assembly, maximizing performance and minimizing resource usage in your application.
+
+### Handling Inherited Documentation Issues
+
+When using XDoc, you might see this warning:
+
+```text
+Inherited documentation is missing. This may mean the parent member has no documentation or is in a different assembly.
+```
+
+This happens when XDoc tries to resolve `<inheritdoc/>` tags but can’t find the parent documentation. 
+Common reasons include missing XML documentation in referenced assemblies or undocumented base members.
+
+#### How to fix issue with missing XML documentation in referenced assemblies
+
+For NuGet packages, ensure their XML documentation files are available to your project. 
+You can do this by adding IncludeAssets="All" to your `<PackageReference>` in the .csproj file:
+
+```xml
+<ItemGroup>
+    <PackageReference Include="BitzArt.CA.Persistence.EntityFrameworkCore.Relational" IncludeAssets="All" Version="1.9.4" />
+</ItemGroup>
+```
+If  NuGet package include xml documentation, then these files will be copied to the output directory.
+
+#### How to fix issue with missing documentation in parent members
+
+Just add correct XML documentation to the parent members.
+
+---
+By following these recommendations, you can ensure that XML documentation is parsed only once per assembly, 
+maximizing performance and minimizing resource usage in your application.

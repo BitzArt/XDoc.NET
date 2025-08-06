@@ -48,15 +48,15 @@ internal static class XmlUtility
         catch (Exception ex)
         {
             throw new AggregateException("Something went wrong while trying to parse the XML documentation file. " +
-                                    "See inner exception for details.", ex);
+                                         "See inner exception for details.", ex);
         }
     }
 
     private static string GetXmlDocumentationFilePath(Assembly assembly)
     {
         // Try to find local XML documentation file
-        var assemblyLocation = assembly.Location;
-        var localXmlPath = Path.ChangeExtension(assemblyLocation, "xml");
+
+        var localXmlPath = assembly.GetXmlDocumentationFilePath();
 
         if (File.Exists(localXmlPath))
         {

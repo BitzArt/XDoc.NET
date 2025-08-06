@@ -10,25 +10,6 @@ namespace BitzArt.XDoc;
 public static class MutableEntityTypeExtensions
 {
     /// <summary>
-    /// Configures XML documentation as comments for all properties of an entity type.
-    /// </summary>
-    /// <param name="entityType">The entity type whose properties should be configured with documentation.</param>
-    /// <param name="xDoc">The XDoc instance containing XML documentation information.</param>
-    /// <remarks>
-    /// This method iterates through all properties of the entity type and applies
-    /// XML documentation as comments to each property.
-    /// </remarks>
-    public static void ConfigurePropertiesXmlDocumentation(this IMutableEntityType entityType, XDoc xDoc)
-    {
-        var properties = entityType.GetProperties();
-
-        foreach (var property in properties)
-        {
-            entityType.ConfigurePropertyXmlDocumentation(xDoc, property);
-        }
-    }
-
-    /// <summary>
     /// Configures XML documentation as a comment for an entity type.
     /// </summary>
     /// <param name="entityType">The entity type to configure with documentation.</param>

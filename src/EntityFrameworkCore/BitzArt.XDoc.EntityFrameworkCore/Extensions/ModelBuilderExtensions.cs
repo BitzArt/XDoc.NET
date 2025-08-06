@@ -21,7 +21,13 @@ public static class ModelBuilderExtensions
         foreach (var entityType in entityTypes)
         {
             entityType.ConfigureEntityXmlDocumentation(xDoc);
-            entityType.ConfigurePropertiesXmlDocumentation(xDoc);
+
+            var properties = entityType.GetProperties();
+
+            foreach (var property in properties)
+            {
+                entityType.ConfigurePropertyXmlDocumentation(xDoc, property);
+            }
         }
 
         return modelBuilder;
